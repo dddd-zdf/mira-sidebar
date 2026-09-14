@@ -18,6 +18,7 @@ The local build is unsigned. No signing certificate or publisher identity was su
 | Action | Control |
 | --- | --- |
 | Show / hide | Ctrl+Space or tray-icon click |
+| Switch to Mira while visible | Alt+Tab or its Windows taskbar button; hidden Mira is summoned with Ctrl+Space |
 | Fresh chat (inside Mira) | Ctrl+T |
 | Temporary chat (inside Mira) | Ctrl+Shift+N |
 | Delete current saved chat (inside Mira) | Ctrl+W; ChatGPT asks for confirmation |

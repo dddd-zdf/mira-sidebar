@@ -574,7 +574,7 @@ function createWindow() {
     minHeight: layout.MIN_HEIGHT,
     frame: false,
     show: false,
-    skipTaskbar: true,
+    skipTaskbar: false,
     alwaysOnTop: config.alwaysOnTop,
     title: 'Mira Sidebar',
     icon: path.join(__dirname, 'assets', 'mira.png'),
