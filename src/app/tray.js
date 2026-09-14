@@ -19,7 +19,7 @@ function createTray(iconPath, getState, dispatch) {
   function refresh() {
     const state = getState();
     tray.setToolTip(state.tooltip ?? 'Mira Sidebar');
-    const items = buildTemplate(state).filter(item => !['Provider', 'Enabled Providers'].includes(item.label));
+    const items = buildTemplate(state);
     tray.setContextMenu(Menu.buildFromTemplate(toMenuTemplate(items, dispatch)));
   }
   tray.on('click', () => dispatch('toggle-window'));

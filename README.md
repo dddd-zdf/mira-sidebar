@@ -9,7 +9,7 @@ A slim Windows sidebar containing the real ChatGPT website. Press **Ctrl+Space**
 1. Run **dist/Mira Sidebar Setup 1.0.0.exe** for a per-user install, or run **dist/win-unpacked/Mira Sidebar.exe** directly. Keep the whole win-unpacked folder together.
 2. Mira starts hidden. Find its lavender M icon in the Windows system tray (possibly under the ^ overflow), or press **Ctrl+Space**.
 3. Sign in on the ChatGPT page yourself. Mira does not import your Chrome or official desktop-app session.
-4. Use the title-strip menu or right-click the tray icon for **Mira Settings**, docking, reload, and quit.
+4. Use the title-strip menu or right-click the tray icon for **Settings**, docking, reload, and quit.
 
 The local build is unsigned. No signing certificate or publisher identity was supplied. Launch at login is off until you enable it. Prefer the installed version before enabling it; moving the unpacked folder breaks its startup path.
 
@@ -25,14 +25,14 @@ The local build is unsigned. No signing certificate or publisher identity was su
 | Change global hotkey | Mira Settings > Global shortcut > Save settings |
 | Shortcut collision | Startup tries Ctrl+Shift+Space; the actual chord appears in the menu and title strip. If both are occupied, use the tray. |
 | Keep previous shortcut after rejected change | Automatic; settings explains the conflict |
-| Dock left / right | Mira menu > Dock Left / Dock Right |
+| Dock left / right | Win+Left / Win+Right while Mira is focused |
 | Make other windows fit beside Mira | Drag another window to the top edge to maximize it on Mira's monitor (Windows only) |
 | Resize width | Drag a window edge; minimum width is 420 logical pixels |
-| Move to another monitor | Drag the Mira title strip, then dock on that display |
-| Always on top | Enabled by default; change in settings/menu |
-| Hide when switching apps | Optional in settings/menu; off by default |
-| Start hidden | On by default; adjustable in settings/menu |
-| Launch at Windows login | Settings/menu in the built app; optional, always launches hidden |
+| Move to another monitor | Drag the Mira title strip, then press Win+Left or Win+Right |
+| Always on top | Enabled by default; change in Settings |
+| Hide when switching apps | Optional in Settings; off by default |
+| Start hidden | On by default; adjustable in Settings |
+| Launch at Windows login | Settings in the built app; optional, always launches hidden |
 | Reload ChatGPT | Reload button or Ctrl+R |
 | Page zoom | Ctrl++ / Ctrl+- / Ctrl+0 |
 | Hide without quitting | Title-strip X, Alt+F4, or hotkey |
@@ -75,7 +75,7 @@ If your npm policy skips dependency install scripts, run `node node_modules/elec
 
 Normal profile: **%APPDATA%/Mira Sidebar/**. Settings are in config.json; the persistent ChatGPT web session lives under its Partitions directory. Do not share this folder. The executable/source contains no account data. Sign out through ChatGPT to sign out of this embedded session. Uninstalling may retain the profile for reinstall continuity.
 
-Use Settings for common options. Advanced JSON editing is available from Edit Config, then Reload Config. A malformed JSON file falls back to defaults. Preferred hotkey and active fallback can differ when another app owns the preferred chord. Windows input-method shortcuts can also interact with Ctrl+Space; choose Ctrl+Shift+Space if needed.
+Use Settings for common options. For advanced JSON edits, quit Mira, edit config.json in its profile folder, then restart. A malformed JSON file falls back to defaults. Preferred hotkey and active fallback can differ when another app owns the preferred chord. Windows input-method shortcuts can also interact with Ctrl+Space; choose Ctrl+Shift+Space if needed.
 
 ## Compatibility limits
 
@@ -88,3 +88,5 @@ File inputs use the normal embedded browser picker. Downloads use a save dialog.
 ## Source and license
 
 Adapted from [thinkdj/ChatGPT-Desktop-Companion](https://github.com/thinkdj/ChatGPT-Desktop-Companion), with its [GPL-3.0 license](LICENSE) retained. See [NOTICE.md](NOTICE.md) for the pinned upstream commit and modifications, and [ARCHITECTURE.md](ARCHITECTURE.md) for the Electron/Tauri decision and security boundaries.
+
+The right-click menu contains Show / Hide Mira, Window Arrangement, Always on Top, Settings, and Quit. Startup and focus-loss preferences are in Settings. Chat shortcuts and Ctrl+R continue to work. Win+Left/Right dock Mira only while its main window is foreground; other Windows shortcuts retain their normal behavior. Live shortcut testing is pending.

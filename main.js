@@ -56,6 +56,7 @@ let hotkeyRegistered = false;
 let hiddenByBlurAt = 0;
 let windowsAppbar = null;
 let maximizeWatcher = null;
+let dockKeys = null;
 let pinnedBesideWindows = false;
 
 function shouldReserveSpace() {
@@ -633,6 +634,15 @@ function createWindow() {
 
   applyReservedDocking();
   watchTopEdgeMaximize();
+  if (process.platform === 'win32') {
+    const onDockKeyError = error => {
+      console.error('Dock shortcut:', error);
+      loadStatus = 'Win+Arrow docking is unavailable. Restart Mira to retry.';
+      pushStripState();
+    };
+    try { dockKeys = require('./src/app/windows-dock-keys').createDockKeys({ win, dock, onError: onDockKeyError }); }
+    catch (error) { onDockKeyError(error); }
+  }
   viewManager.show(activeProvider());
   if ((!config.startMinimized && !process.argv.includes('--hidden')) || process.argv.includes('--show')) win.show();
 }
@@ -684,6 +694,7 @@ if (!app.requestSingleInstanceLock()) {
     saveBoundsNow();
     quitting = true;
     maximizeWatcher?.dispose();
+    dockKeys?.dispose();
     windowsAppbar?.dispose();
     for (const id of viewManager?.cachedIds() ?? []) viewManager.destroy(id);
     stripView?.webContents.close();
