@@ -1,5 +1,7 @@
 # Mira Sidebar
 
+Based on [ChatGPT Desktop Companion by thinkdj](https://github.com/thinkdj/ChatGPT-Desktop-Companion). Mira Sidebar adapts that project's Electron sidebar, with the original GPL-3.0 license preserved. See [attribution and modification details](NOTICE.md).
+
 A slim Windows sidebar containing the real ChatGPT website. Press **Ctrl+Space** to show it, and press it again to hide it. Sign in directly on ChatGPT once; its embedded browser profile persists across restarts.
 
 ## Run the built Windows app
@@ -69,4 +71,4 @@ File inputs use the normal embedded browser picker. Downloads use a save dialog.
 
 ## Source and license
 
-Adapted from thinkdj/ChatGPT-Desktop-Companion, with its GPL-3.0 license retained. See NOTICE.md for the pinned upstream commit and modifications, and ARCHITECTURE.md for the Electron/Tauri decision and security boundaries.
+Adapted from [thinkdj/ChatGPT-Desktop-Companion](https://github.com/thinkdj/ChatGPT-Desktop-Companion), with its [GPL-3.0 license](LICENSE) retained. See [NOTICE.md](NOTICE.md) for the pinned upstream commit and modifications, and [ARCHITECTURE.md](ARCHITECTURE.md) for the Electron/Tauri decision and security boundaries.
