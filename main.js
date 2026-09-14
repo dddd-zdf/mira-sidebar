@@ -55,26 +55,32 @@ let blurHandler = null;
 let hotkeyRegistered = false;
 let hiddenByBlurAt = 0;
 let windowsAppbar = null;
+let pinnedBesideWindows = false;
+
+function unpinSidebar() {
+  pinnedBesideWindows = false;
+  windowsAppbar?.configure(false, config.dockSide);
+  if (!quitting) refreshUi();
+}
 
 function applyReservedDocking() {
   if (process.platform !== 'win32' || !win) return;
   try {
-    if (config.reserveSpace && !windowsAppbar) {
+    if (pinnedBesideWindows && !windowsAppbar) {
       windowsAppbar = require('./src/app/windows-appbar').createWindowsAppbar({
         win, screen,
         isAlwaysOnTop: () => config.alwaysOnTop,
         onError: dockingFailed,
       });
     }
-    windowsAppbar?.configure(config.reserveSpace, config.dockSide);
+    windowsAppbar?.configure(pinnedBesideWindows, config.dockSide);
   } catch (error) { dockingFailed(error); }
 }
 
 function dockingFailed(error) {
   console.error('Windows docking:', error);
-  config.reserveSpace = false;
-  persist({ reserveSpace: false });
-  loadStatus = 'Space reservation failed. Mira Settings can enable it again.';
+  pinnedBesideWindows = false;
+  loadStatus = 'Pinning failed. Try Pin Beside Other Windows again from the menu.';
   refreshUi();
 }
 
@@ -152,7 +158,7 @@ function trayState() {
       active: p.id === config.activeProvider,
     })),
     alwaysOnTop: config.alwaysOnTop,
-    reserveSpace: process.platform === 'win32' ? config.reserveSpace : null,
+    reserveSpace: process.platform === 'win32' ? pinnedBesideWindows : null,
     startAtLogin: supportsLoginItem() ? app.getLoginItemSettings(loginItemOptions()).openAtLogin : null,
     hotkey: { accelerator: activeHotkey ?? config.hotkey, registered: hotkeyRegistered },
   };
@@ -250,7 +256,7 @@ function dock(side) {
   if (!win) return;
   config.dockSide = side;
   persist({ dockSide: side });
-  if (config.reserveSpace && process.platform === 'win32') {
+  if (pinnedBesideWindows && process.platform === 'win32') {
     applyReservedDocking();
     saveBoundsNow();
     return;
@@ -299,12 +305,12 @@ function trustedSettings(event) {
 
 ipcMain.handle('settings:read', event => {
   if (!trustedSettings(event)) throw new Error('Untrusted sender');
-  return { ...config, activeHotkey, packaged: app.isPackaged, supportsReservedDocking: process.platform === 'win32', startAtLogin: app.getLoginItemSettings(loginItemOptions()).openAtLogin };
+  return { ...config, activeHotkey, packaged: app.isPackaged, startAtLogin: app.getLoginItemSettings(loginItemOptions()).openAtLogin };
 });
 ipcMain.handle('settings:save', (event, raw) => {
   if (!trustedSettings(event)) throw new Error('Untrusted sender');
   if (!raw || typeof raw.hotkey !== 'string' || raw.hotkey.length > 80 ||
-      !['alwaysOnTop','hideOnBlur','startMinimized','startAtLogin','reserveSpace'].every(key => typeof raw[key] === 'boolean')) {
+      !['alwaysOnTop','hideOnBlur','startMinimized','startAtLogin'].every(key => typeof raw[key] === 'boolean')) {
     return { message: 'Please check the settings and try again.' };
   }
   const { issues } = normalize({ hotkey: raw.hotkey });
@@ -312,7 +318,7 @@ ipcMain.handle('settings:save', (event, raw) => {
   const previous = activeHotkey;
   const result = bindHotkey(globalShortcut, raw.hotkey, activeHotkey, () => dispatch('toggle-window'));
   if (!result.ok) return { message: 'That shortcut is unavailable. Your previous shortcut is still active.' };
-  const patch = Object.fromEntries(['hotkey','alwaysOnTop','hideOnBlur','startMinimized','reserveSpace'].map(key => [key, raw[key]]));
+  const patch = Object.fromEntries(['hotkey','alwaysOnTop','hideOnBlur','startMinimized'].map(key => [key, raw[key]]));
   try {
     saveJsonAtomic(configPath, { ...config, ...patch });
   } catch {
@@ -329,7 +335,7 @@ ipcMain.handle('settings:save', (event, raw) => {
   applyReservedDocking();
   if (app.isPackaged) app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: raw.startAtLogin });
   refreshUi();
-  return { message: raw.reserveSpace && !config.reserveSpace ? 'Space reservation failed; the other settings were saved.' : `Saved. Press ${activeHotkey} to show or hide Mira.`, reserveSpace: config.reserveSpace };
+  return { message: `Saved. Press ${activeHotkey} to show or hide Mira.` };
 });
 
 function reloadConfig() {
@@ -395,8 +401,12 @@ function dispatch(action) {
     case 'toggle-always-on-top':
       return toggleAlwaysOnTop();
     case 'toggle-reserve-space':
-      config.reserveSpace = !config.reserveSpace;
-      persist({ reserveSpace: config.reserveSpace });
+      if (process.platform !== 'win32') return;
+      pinnedBesideWindows = !pinnedBesideWindows;
+      if (pinnedBesideWindows) {
+        if (win.isMinimized()) win.restore();
+        win.show();
+      }
       applyReservedDocking(); refreshUi(); return;
     case 'toggle-start-at-login': {
       if (!supportsLoginItem()) return undefined;
@@ -489,7 +499,7 @@ function applyHideOnBlur() {
       // the guard window, or the next toggle within 300ms would be dropped.
       if (!win.isVisible()) return;
       setTimeout(() => {
-        if (!win || win.isDestroyed() || win.isFocused() || transientDepth || settingsWindow || viewManager.hasPopups()) return;
+        if (!win || win.isDestroyed() || win.isFocused() || pinnedBesideWindows || transientDepth || settingsWindow || viewManager.hasPopups()) return;
         hiddenByBlurAt = Date.now();
         win.hide();
       }, 180);
@@ -570,6 +580,8 @@ function createWindow() {
     scheduleBoundsSave();
   });
   win.on('move', scheduleBoundsSave);
+  win.on('hide', unpinSidebar);
+  win.on('minimize', unpinSidebar);
   win.on('close', (event) => {
     saveBoundsNow();
     if (!quitting) {
@@ -624,7 +636,7 @@ if (!app.requestSingleInstanceLock()) {
       dispatch,
     );
     screen.on('display-removed', () => {
-      if (config.reserveSpace && process.platform === 'win32') return;
+      if (pinnedBesideWindows && process.platform === 'win32') return;
       const bounds = layout.clampToDisplay(win.getBounds(), screen.getAllDisplays().map(d => d.workArea));
       if (bounds) win.setBounds(bounds);
     });

@@ -9,7 +9,6 @@ const DEFAULTS = Object.freeze({
   hotkey: 'Control+Space',
   alwaysOnTop: true,
   hideOnBlur: false,
-  reserveSpace: false,
   dockSide: 'right',
   dockWidthFraction: 0.25,
   startMinimized: true,
@@ -32,7 +31,6 @@ function defaults() {
     hotkey: DEFAULTS.hotkey,
     alwaysOnTop: DEFAULTS.alwaysOnTop,
     hideOnBlur: DEFAULTS.hideOnBlur,
-    reserveSpace: DEFAULTS.reserveSpace,
     dockSide: DEFAULTS.dockSide,
     startMinimized: DEFAULTS.startMinimized,
     dockWidthFraction: DEFAULTS.dockWidthFraction,
@@ -118,7 +116,7 @@ function normalize(raw) {
     }
   }
 
-  for (const field of ['alwaysOnTop', 'hideOnBlur', 'startMinimized', 'reserveSpace']) {
+  for (const field of ['alwaysOnTop', 'hideOnBlur', 'startMinimized']) {
     if (raw[field] !== undefined) {
       if (typeof raw[field] === 'boolean') {
         config[field] = raw[field];

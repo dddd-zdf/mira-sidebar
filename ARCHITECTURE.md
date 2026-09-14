@@ -21,7 +21,7 @@ This is an engineering tradeoff for the working v1, not evidence that Electron c
 
 ## Windows docking
 
-The optional `reserveSpace` setting uses `src/app/windows-appbar.js`, loaded only in the Windows main process when enabled. Koffi 3.2.1 calls the system Shell/User32 libraries. `ABM_NEW`, `ABM_QUERYPOS`, and `ABM_SETPOS` negotiate reserved space; `ABM_REMOVE` releases it on hide, minimize, disable, and shutdown. No global work-area override or PowerToys configuration changes are used.
+The temporary **Pin Beside Other Windows** menu action uses `src/app/windows-appbar.js`, loaded only in the Windows main process when enabled. The pin state lives in memory and resets on hide/minimize; older persisted `reserveSpace` settings are ignored. Koffi 3.2.1 calls the system Shell/User32 libraries. `ABM_NEW`, `ABM_QUERYPOS`, and `ABM_SETPOS` negotiate reserved space; `ABM_REMOVE` releases it on hide, minimize, unpin, and shutdown. No global work-area override or PowerToys configuration changes are used. Focus-loss hiding is suspended while pinned.
 
 Native monitor/window rectangles and positioning use physical pixels throughout to avoid mixing Windows pixels with Electron DIP coordinates. Message hooks defer Shell calls; position caching prevents feedback loops from our own work-area notifications. Interactive moves/resizes settle before repositioning. Explorer's `TaskbarCreated` message re-registers a visible dock; display changes renegotiate the rectangle. Native API failures disable the option and report an error in the sidebar. The prior overlay path remains the default. Live validation is pending at the user's request.
 

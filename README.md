@@ -25,7 +25,7 @@ The local build is unsigned. No signing certificate or publisher identity was su
 | Shortcut collision | Startup tries Ctrl+Shift+Space; the actual chord appears in the menu and title strip. If both are occupied, use the tray. |
 | Keep previous shortcut after rejected change | Automatic; settings explains the conflict |
 | Dock left / right | Mira menu > Dock Left / Dock Right |
-| Make other windows fit beside Mira | Enable **Reserve Space When Docked** in the menu, or check it in Mira Settings and save (Windows only) |
+| Make other windows fit beside Mira | Check **Pin Beside Other Windows** in Mira's menu (Windows only); hiding Mira unpins it |
 | Resize width | Drag a window edge; minimum width is 420 logical pixels |
 | Move to another monitor | Drag the Mira title strip, then dock on that display |
 | Always on top | Enabled by default; change in settings/menu |
@@ -43,9 +43,9 @@ ChatGPT remains alive while hidden, so a draft or in-progress response survives 
 
 ### Windows space reservation
 
-Space reservation is optional and off by default. Enable **Reserve Space When Docked**, then choose **Dock Left** or **Dock Right**. Windows reserves Mira's width so ordinary maximized windows fit in the remaining desktop area. Ctrl+Space releases the reservation when hiding Mira and restores it when showing Mira. Quitting or disabling the option also releases it. The dock side and width persist across restarts.
+Mira opens as an overlay. Choose **Pin Beside Other Windows** from its menu when you want Windows to reserve its width, then choose **Dock Left** or **Dock Right**. Ordinary maximized windows fit in the remaining desktop area. Hiding, minimizing, quitting, or unchecking the menu item releases the reservation. The next pop-out is an overlay again. Pinning is temporary; only the dock side and width persist across restarts. Earlier saved `reserveSpace` preferences are ignored.
 
-Drag the inner edge to change width; the reservation updates when you finish dragging. With this mode enabled, dragging the title strip to another monitor re-docks Mira on that monitor at the selected side when you release it. Fullscreen apps (F11, video, games) behave separately; Mira yields its topmost position while Windows reports a fullscreen app. If you want Mira to remain beside another app, leave **Hide on Focus Loss** off.
+Drag the inner edge to change width; the reservation updates when you finish dragging. While pinned, dragging the title strip to another monitor re-docks Mira on that monitor at the selected side when you release it. Fullscreen apps (F11, video, games) behave separately; Mira yields its topmost position while Windows reports a fullscreen app. Pinning temporarily suspends **Hide on Focus Loss** so you can work in the other window.
 
 This feature uses the Windows Shell AppBar API through Koffi in the main process. It does not change PowerToys mappings or expose native access to ChatGPT. This build has not been live-tested for docking; manual validation is pending.
 
