@@ -58,12 +58,24 @@ let windowsAppbar = null;
 let maximizeWatcher = null;
 let pinnedBesideWindows = false;
 
+function shouldReserveSpace() {
+  return !quitting && win && !win.isDestroyed() && win.isVisible() && !win.isMinimized() &&
+    (config.arrangementMode === 'always-reserve' || (config.arrangementMode === 'adaptive' && pinnedBesideWindows));
+}
+
+function applyArrangementMode() {
+  maximizeWatcher?.reset();
+  pinnedBesideWindows = false;
+  applyReservedDocking();
+  refreshUi();
+}
+
 function watchTopEdgeMaximize() {
   if (process.platform !== 'win32' || maximizeWatcher) return;
   try {
     maximizeWatcher = require('./src/app/windows-maximize-watcher').createMaximizeWatcher({
       win,
-      isEnabled: () => config.autoFitOnMaximize && !quitting,
+      isEnabled: () => config.arrangementMode === 'adaptive' && !quitting,
       onReservation: active => {
         pinnedBesideWindows = active;
         applyReservedDocking();
@@ -83,21 +95,23 @@ function unpinSidebar() {
 function applyReservedDocking() {
   if (process.platform !== 'win32' || !win) return;
   try {
-    if (pinnedBesideWindows && !windowsAppbar) {
+    if (shouldReserveSpace() && !windowsAppbar) {
       windowsAppbar = require('./src/app/windows-appbar').createWindowsAppbar({
         win, screen,
         isAlwaysOnTop: () => config.alwaysOnTop,
         onError: dockingFailed,
       });
     }
-    windowsAppbar?.configure(pinnedBesideWindows, config.dockSide);
+    windowsAppbar?.configure(!!shouldReserveSpace(), config.dockSide);
   } catch (error) { dockingFailed(error); }
 }
 
 function dockingFailed(error) {
   console.error('Windows docking:', error);
   pinnedBesideWindows = false;
-  loadStatus = 'Automatic window fitting failed. Toggle it off and on in the menu to retry.';
+  config.arrangementMode = 'normal';
+  persist({ arrangementMode: 'normal' });
+  loadStatus = 'Space reservation failed. Normal mode is active; choose another Window Arrangement mode to retry.';
   refreshUi();
 }
 
@@ -175,7 +189,7 @@ function trayState() {
       active: p.id === config.activeProvider,
     })),
     alwaysOnTop: config.alwaysOnTop,
-    autoFitOnMaximize: process.platform === 'win32' ? config.autoFitOnMaximize : null,
+    arrangementMode: process.platform === 'win32' ? config.arrangementMode : null,
     startAtLogin: supportsLoginItem() ? app.getLoginItemSettings(loginItemOptions()).openAtLogin : null,
     hotkey: { accelerator: activeHotkey ?? config.hotkey, registered: hotkeyRegistered },
   };
@@ -273,7 +287,7 @@ function dock(side) {
   if (!win) return;
   config.dockSide = side;
   persist({ dockSide: side });
-  if (pinnedBesideWindows && process.platform === 'win32') {
+  if (shouldReserveSpace() && process.platform === 'win32') {
     applyReservedDocking();
     saveBoundsNow();
     return;
@@ -322,12 +336,13 @@ function trustedSettings(event) {
 
 ipcMain.handle('settings:read', event => {
   if (!trustedSettings(event)) throw new Error('Untrusted sender');
-  return { ...config, activeHotkey, packaged: app.isPackaged, startAtLogin: app.getLoginItemSettings(loginItemOptions()).openAtLogin };
+  return { ...config, activeHotkey, packaged: app.isPackaged, supportsArrangement: process.platform === 'win32', startAtLogin: app.getLoginItemSettings(loginItemOptions()).openAtLogin };
 });
 ipcMain.handle('settings:save', (event, raw) => {
   if (!trustedSettings(event)) throw new Error('Untrusted sender');
   if (!raw || typeof raw.hotkey !== 'string' || raw.hotkey.length > 80 ||
-      !['alwaysOnTop','hideOnBlur','startMinimized','startAtLogin'].every(key => typeof raw[key] === 'boolean')) {
+      !['alwaysOnTop','hideOnBlur','startMinimized','startAtLogin'].every(key => typeof raw[key] === 'boolean') ||
+      !['normal', 'adaptive', 'always-reserve'].includes(raw.arrangementMode)) {
     return { message: 'Please check the settings and try again.' };
   }
   const { issues } = normalize({ hotkey: raw.hotkey });
@@ -335,7 +350,8 @@ ipcMain.handle('settings:save', (event, raw) => {
   const previous = activeHotkey;
   const result = bindHotkey(globalShortcut, raw.hotkey, activeHotkey, () => dispatch('toggle-window'));
   if (!result.ok) return { message: 'That shortcut is unavailable. Your previous shortcut is still active.' };
-  const patch = Object.fromEntries(['hotkey','alwaysOnTop','hideOnBlur','startMinimized'].map(key => [key, raw[key]]));
+  const previousMode = config.arrangementMode;
+  const patch = Object.fromEntries(['hotkey','alwaysOnTop','hideOnBlur','startMinimized','arrangementMode'].map(key => [key, raw[key]]));
   try {
     saveJsonAtomic(configPath, { ...config, ...patch });
   } catch {
@@ -349,7 +365,8 @@ ipcMain.handle('settings:save', (event, raw) => {
   activeHotkey = result.active; hotkeyRegistered = true;
   Object.assign(config, patch);
   win.setAlwaysOnTop(config.alwaysOnTop, 'screen-saver'); applyHideOnBlur();
-  applyReservedDocking();
+  if (previousMode !== config.arrangementMode) applyArrangementMode();
+  else applyReservedDocking();
   if (app.isPackaged) app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: raw.startAtLogin });
   refreshUi();
   return { message: `Saved. Press ${activeHotkey} to show or hide Mira.` };
@@ -357,8 +374,7 @@ ipcMain.handle('settings:save', (event, raw) => {
 
 function reloadConfig() {
   loadConfigFromDisk();
-  if (!config.autoFitOnMaximize) maximizeWatcher?.reset();
-  applyReservedDocking();
+  applyArrangementMode();
   win.setAlwaysOnTop(config.alwaysOnTop, 'screen-saver');
   applyHideOnBlur();
   registerHotkey();
@@ -375,6 +391,14 @@ function reloadConfig() {
 }
 
 function dispatch(action) {
+  if (action.startsWith('arrangement:')) {
+    const mode = action.slice('arrangement:'.length);
+    if (process.platform !== 'win32' || !['normal', 'adaptive', 'always-reserve'].includes(mode)) return;
+    config.arrangementMode = mode;
+    persist({ arrangementMode: mode });
+    applyArrangementMode();
+    return;
+  }
   if (action.startsWith('chat:')) {
     if (chatActionBusy) return;
     chatActionBusy = true;
@@ -418,13 +442,6 @@ function dispatch(action) {
       return dock('right');
     case 'toggle-always-on-top':
       return toggleAlwaysOnTop();
-    case 'toggle-auto-fit':
-      if (process.platform !== 'win32') return;
-      config.autoFitOnMaximize = !config.autoFitOnMaximize;
-      persist({ autoFitOnMaximize: config.autoFitOnMaximize });
-      if (!config.autoFitOnMaximize) maximizeWatcher?.reset();
-      else watchTopEdgeMaximize();
-      refreshUi(); return;
     case 'toggle-start-at-login': {
       if (!supportsLoginItem()) return undefined;
       const current = app.getLoginItemSettings(loginItemOptions()).openAtLogin;
@@ -516,7 +533,7 @@ function applyHideOnBlur() {
       // the guard window, or the next toggle within 300ms would be dropped.
       if (!win.isVisible()) return;
       setTimeout(() => {
-        if (!win || win.isDestroyed() || win.isFocused() || pinnedBesideWindows || maximizeWatcher?.isDragging() || transientDepth || settingsWindow || viewManager.hasPopups()) return;
+        if (!win || win.isDestroyed() || win.isFocused() || shouldReserveSpace() || maximizeWatcher?.isDragging() || transientDepth || settingsWindow || viewManager.hasPopups()) return;
         hiddenByBlurAt = Date.now();
         win.hide();
       }, 180);
@@ -598,6 +615,8 @@ function createWindow() {
   });
   win.on('move', scheduleBoundsSave);
   win.on('hide', unpinSidebar);
+  win.on('show', applyReservedDocking);
+  win.on('restore', applyReservedDocking);
   win.on('minimize', unpinSidebar);
   win.on('close', (event) => {
     saveBoundsNow();
@@ -654,7 +673,7 @@ if (!app.requestSingleInstanceLock()) {
       dispatch,
     );
     screen.on('display-removed', () => {
-      if (pinnedBesideWindows && process.platform === 'win32') return;
+      if (shouldReserveSpace() && process.platform === 'win32') return;
       const bounds = layout.clampToDisplay(win.getBounds(), screen.getAllDisplays().map(d => d.workArea));
       if (bounds) win.setBounds(bounds);
     });

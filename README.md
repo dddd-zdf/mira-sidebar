@@ -44,11 +44,15 @@ ChatGPT remains alive while hidden, so a draft or in-progress response survives 
 
 ### Windows space reservation
 
-Mira opens as an overlay. With **Fit Beside Top-Edge Maximize** enabled in its menu (the default), drag another window to the top edge of Mira's monitor and release it to maximize. Mira then reserves its width, allowing the maximized window to fit beside it. Choose **Dock Left** or **Dock Right** to select Mira's side.
+Choose **Window Arrangement** in the menu or **Window arrangement** in Mira Settings:
 
-The reservation is released when that window is restored, minimized, closed, hidden, or moved to another monitor, or when Mira is hidden or the option is disabled. Showing Mira again starts as an overlay. Clicking a maximize button, using Win+Up, opening an already-maximized window, F11 fullscreen, and partial Snap layouts do not trigger this mode.
+- **Normal window:** never reserves desktop space.
+- **Adaptive (default):** starts without reserving space. Drag another window to the top edge on Mira's monitor to maximize it; Mira then reserves its width. Restoring, minimizing, closing, hiding, or moving that window to another monitor releases the reservation.
+- **Always reserve:** reserves Mira's width whenever Mira is visible, including immediately after showing it.
 
-Windows finishes its maximize operation before Mira reserves space, so a brief resize may be visible. Width changes update the reservation when you finish dragging Mira's edge. Hide on Focus Loss is suspended during the drag and while space is reserved. This uses a local Windows event hook and AppBar APIs; it does not change PowerToys settings or access other windows' content. Live validation is pending at the user's request.
+All modes release space when Mira is hidden or minimized, support Alt+Tab, and remember the dock side and width. **Always on Top** remains an independent preference; turn it off if you want other windows to cover Mira. Older autoFitOnMaximize/reserveSpace flags are superseded by arrangementMode; profiles without the new setting start in Adaptive.
+
+Adaptive responds to a completed top-edge drag, not a maximize-button click, Win+Up, an already-maximized window, F11 fullscreen, or a partial Snap layout. Windows finishes maximizing before the reservation, so a brief resize may be visible. Hide on Focus Loss is suspended while space is reserved or a tracked drag is in progress. Live validation is pending at the user's request.
 
 ### Build from source
 

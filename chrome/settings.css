@@ -1,7 +1,7 @@
 :root { color-scheme: dark; font: 14px 'Segoe UI', sans-serif; background: #171b22; color: #eef1f5; }
 body { margin: 0; } main { padding: 26px 30px; } .eyebrow { color: #adbaff; font-size: 11px; letter-spacing: 2px; }
 h1 { font-size: 26px; margin: 10px 0 26px; font-weight: 600; } label { display: block; margin: 12px 0 8px; }
-input:not([type=checkbox]) { box-sizing: border-box; width: 100%; padding: 12px; font: inherit; border: 1px solid #778199; border-radius: 6px; background: #222936; color: inherit; }
+input:not([type=checkbox]), select { box-sizing: border-box; width: 100%; padding: 12px; font: inherit; border: 1px solid #778199; border-radius: 6px; background: #222936; color: inherit; }
 .check { display: flex; align-items: center; gap: 9px; } input[type=checkbox] { width: 17px; height: 17px; accent-color: #adbaff; }
 .hint { color: #adb5c5; font-size: 12px; line-height: 1.6; } button { margin-top: 16px; background: #b7c1ff; color: #182037; border: 0; border-radius: 6px; padding: 11px 20px; font: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid #d1d8ff; outline-offset: 3px; } #result { min-height: 22px; }
