@@ -46,6 +46,7 @@ const { createTray } = require('./src/app/tray');
 let win = null;
 let stripView = null;
 let viewManager = null;
+let pageFind = null;
 let trayHandle = null;
 let config = defaults();
 let configPath = null;
@@ -249,6 +250,7 @@ function toggleWindow() {
 }
 
 function switchProvider(id) {
+  pageFind?.close(false);
   const provider = providers.byId(id, config.customProviders);
   if (!provider || !config.enabledProviders.includes(id)) return;
   config.activeProvider = id;
@@ -392,6 +394,7 @@ function reloadConfig() {
 }
 
 function dispatch(action) {
+  if (action === 'find:open') return pageFind?.open();
   if (action.startsWith('arrangement:')) {
     const mode = action.slice('arrangement:'.length);
     if (process.platform !== 'win32' || !['normal', 'adaptive', 'always-reserve'].includes(mode)) return;
@@ -483,6 +486,11 @@ function dispatch(action) {
 }
 
 function onViewInput(event, input) {
+  if (input.type === 'keyDown' && input.key === 'Escape' && pageFind?.isOpen()) {
+    event.preventDefault();
+    pageFind.close();
+    return;
+  }
   const action = resolveAction(
     {
       type: input.type,
@@ -609,6 +617,14 @@ function createWindow() {
     onTransient: (delta) => { transientDepth += delta; },
   });
 
+  pageFind = require('./src/app/page-find').createPageFind({
+    getContents: () => viewManager.activeWebContents(),
+    focusBar: () => stripView.webContents.focus(),
+    send: state => {
+      if (stripView && !stripView.webContents.isDestroyed()) stripView.webContents.send('find:state', state);
+    },
+  });
+
   win.on('resize', () => {
     layoutStrip();
     viewManager.layout();
@@ -664,6 +680,13 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('mira:action', (event, action) => {
     if (event.sender === stripView?.webContents && event.senderFrame === stripView.webContents.mainFrame && ['menu','settings','hide-window','reload-page'].includes(action)) dispatch(action);
   });
+  ipcMain.on('find:command', (event, command) => {
+    if (event.sender !== stripView?.webContents || event.senderFrame !== stripView.webContents.mainFrame) return;
+    if (command?.action === 'close') return pageFind?.close();
+    if (typeof command?.query !== 'string' || command.query.length > 2000 ||
+        !['new', 'next', 'previous'].includes(command.action)) return;
+    pageFind?.search(command.query, command.action);
+  });
   ipcMain.on('strip:switch-provider', (event, id) => {
     if (stripView && event.sender === stripView.webContents && typeof id === 'string') {
       switchProvider(id);
@@ -693,6 +716,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     saveBoundsNow();
     quitting = true;
+    pageFind?.close(false);
     maximizeWatcher?.dispose();
     dockKeys?.dispose();
     windowsAppbar?.dispose();

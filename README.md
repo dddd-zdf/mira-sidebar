@@ -19,6 +19,7 @@ The local build is unsigned. No signing certificate or publisher identity was su
 | --- | --- |
 | Show / hide | Ctrl+Space or tray-icon click |
 | Switch to Mira while visible | Alt+Tab or its Windows taskbar button; hidden Mira is summoned with Ctrl+Space |
+| Find in current page | Ctrl+F; Enter / Shift+Enter for next / previous, Escape to close |
 | Fresh chat (inside Mira) | Ctrl+T |
 | Temporary chat (inside Mira) | Ctrl+Shift+N |
 | Delete current saved chat (inside Mira) | Ctrl+W; ChatGPT asks for confirmation |
@@ -90,3 +91,5 @@ File inputs use the normal embedded browser picker. Downloads use a save dialog.
 Adapted from [thinkdj/ChatGPT-Desktop-Companion](https://github.com/thinkdj/ChatGPT-Desktop-Companion), with its [GPL-3.0 license](LICENSE) retained. See [NOTICE.md](NOTICE.md) for the pinned upstream commit and modifications, and [ARCHITECTURE.md](ARCHITECTURE.md) for the Electron/Tauri decision and security boundaries.
 
 The right-click menu contains Show / Hide Mira, Window Arrangement, Always on Top, Settings, and Quit. Startup and focus-loss preferences are in Settings. Chat shortcuts and Ctrl+R continue to work. Win+Left/Right dock Mira only while its main window is foreground; other Windows shortcuts retain their normal behavior. Live shortcut testing is pending.
+
+Find in page searches text currently loaded by the website, not your entire conversation history. Search runs locally through Chromium and uses the existing title strip, without creating another browser view.

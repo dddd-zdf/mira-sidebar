@@ -65,3 +65,10 @@ body {
     border-bottom-color: rgba(255, 255, 255, 0.12);
   }
 }
+
+[hidden] { display: none !important; }
+#findbar { display: flex; height: 100%; align-items: center; gap: 4px; padding: 0 6px; margin: 0; -webkit-app-region: no-drag; }
+#find-query { min-width: 0; flex: 1; height: 22px; box-sizing: border-box; border: 1px solid #888; border-radius: 3px; padding: 1px 5px; font: inherit; color: inherit; background: transparent; user-select: text; }
+#find-count { font-size: 11px; opacity: .75; white-space: nowrap; }
+#findbar button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 16px; padding: 0 6px; }
+#findbar button:hover { background: #69739855; }

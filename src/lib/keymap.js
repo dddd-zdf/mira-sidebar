@@ -24,6 +24,7 @@ function resolveAction(input, platform, enabledCount, swappedCtrlAlt = false) {
   const chatModifier = !meta && ((control && !alt) ||
     (platform === 'win32' && swappedCtrlAlt && alt && !control));
   if (chatModifier || (platform === 'darwin' && meta && !control && !alt)) {
+    if ((input.code === 'KeyF' || key.toLowerCase() === 'f') && !shift) return 'find:open';
     const letter = input.code === 'KeyT' ? 't' : input.code === 'KeyN' ? 'n' : input.code === 'KeyW' ? 'w' : key.toLowerCase();
     if (letter === 't' && !shift) return 'chat:new';
     if (letter === 'n' && shift) return 'chat:temporary';

@@ -5,6 +5,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('companion', {
+  find: command => ipcRenderer.send('find:command', command),
+  onFind: callback => ipcRenderer.on('find:state', (_event, state) => callback(state)),
   action: (action) => ipcRenderer.send('mira:action', action),
   onState: (callback) => {
     ipcRenderer.on('strip:state', (event, state) => callback(state));
