@@ -9,6 +9,8 @@ function createWindowsAppbar({ win, screen, onError, isAlwaysOnTop }) {
   const system32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
   const shell32 = koffi.load(path.join(system32, 'shell32.dll'));
   const user32 = koffi.load(path.join(system32, 'user32.dll'));
+  const dwmapi = koffi.load(path.join(system32, 'dwmapi.dll'));
+  const getFrame = dwmapi.func('int __stdcall DwmGetWindowAttribute(void *hwnd, uint32_t attribute, void *value, uint32_t size)');
   const message = shell32.func('uintptr_t __stdcall SHAppBarMessage(uint32_t message, void *data)');
   const registerMessage = user32.func('uint32_t __stdcall RegisterWindowMessageW(const char16_t *name)');
   const monitorFromWindow = user32.func('void * __stdcall MonitorFromWindow(void *hwnd, uint32_t flags)');
@@ -87,7 +89,26 @@ function createWindowsAppbar({ win, screen, onError, isAlwaysOnTop }) {
       const top = info.readInt32LE(8);
       const right = info.readInt32LE(12);
       const bottom = info.readInt32LE(16);
-      const width = Math.max(1, Math.min(current.readInt32LE(8) - current.readInt32LE(0), right - left));
+      // GetWindowRect includes invisible resize borders. Reserve the visible
+      // DWM frame, then let those borders extend beyond the reserved rectangle.
+      // Re-measure after every resize/DPI change rather than assuming 9 pixels.
+      const frame = Buffer.alloc(16);
+      const outerWidth = current.readInt32LE(8) - current.readInt32LE(0);
+      const outerHeight = current.readInt32LE(12) - current.readInt32LE(4);
+      let inset = [0, 0, 0, 0];
+      if (getFrame(hwnd, 9, frame, 16) === 0) { // DWMWA_EXTENDED_FRAME_BOUNDS
+        const measured = [
+          frame.readInt32LE(0) - current.readInt32LE(0),
+          frame.readInt32LE(4) - current.readInt32LE(4),
+          current.readInt32LE(8) - frame.readInt32LE(8),
+          current.readInt32LE(12) - frame.readInt32LE(12),
+        ];
+        // DWM can briefly report stale geometry during transitions.
+        if (measured.every(value => value >= 0) &&
+            measured[0] + measured[2] < outerWidth / 2 &&
+            measured[1] + measured[3] < outerHeight / 2) inset = measured;
+      }
+      const width = Math.max(1, Math.min(outerWidth - inset[0] - inset[2], right - left));
       const value = data();
       if (!registered) {
         if (!message(0, value)) throw new Error('Windows could not reserve space for Mira.'); // ABM_NEW
@@ -111,9 +132,13 @@ function createWindowsAppbar({ win, screen, onError, isAlwaysOnTop }) {
       const w = value.readInt32LE(rectOffset + 8) - x;
       const h = value.readInt32LE(rectOffset + 12) - y;
       if (w <= 0 || h <= 0) throw new Error('There is no space available on this monitor.');
-      if (current.readInt32LE(0) !== x || current.readInt32LE(4) !== y ||
-          current.readInt32LE(8) !== x + w || current.readInt32LE(12) !== y + h) {
-        if (!setWindowPos(hwnd, null, x, y, w, h, 0x14)) { // NOZORDER | NOACTIVATE
+      const outerX = x - inset[0];
+      const outerY = y - inset[1];
+      const desiredWidth = w + inset[0] + inset[2];
+      const desiredHeight = h + inset[1] + inset[3];
+      if (current.readInt32LE(0) !== outerX || current.readInt32LE(4) !== outerY ||
+          outerWidth !== desiredWidth || outerHeight !== desiredHeight) {
+        if (!setWindowPos(hwnd, null, outerX, outerY, desiredWidth, desiredHeight, 0x14)) { // NOZORDER | NOACTIVATE
           throw new Error('Windows could not position Mira.');
         }
       }
