@@ -1,0 +1,80 @@
+{
+  "name": "mira-sidebar",
+  "version": "1.0.0",
+  "main": "main.js",
+  "description": "Mira Sidebar: your ChatGPT web session, one shortcut away.",
+  "keywords": [
+    "productivity",
+    "ai",
+    "sidebar",
+    "chatgpt",
+    "claude",
+    "gemini",
+    "perplexity",
+    "desktop",
+    "companion",
+    "electron"
+  ],
+  "author": "Mira Sidebar contributors",
+  "engines": {
+    "node": ">=22"
+  },
+  "build": {
+    "productName": "Mira Sidebar",
+    "appId": "local.difei.mira-sidebar",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "src/**/*",
+      "chrome/**/*",
+      "assets/**/*",
+      "package.json",
+      "LICENSE",
+      "NOTICE.md"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "icon": "build-assets/mira.ico",
+      "target": "nsis"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build-assets/mira.ico",
+      "uninstallerIcon": "build-assets/mira.ico",
+      "installerHeaderIcon": "build-assets/mira.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mira Sidebar",
+      "perMachine": false
+    },
+    "publish": null
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win nsis --x64",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps",
+    "build:dir": "electron-builder --win --x64 --dir"
+  },
+  "devDependencies": {
+    "electron": "44.3.0",
+    "electron-builder": "26.15.3"
+  },
+  "license": "GPL-3.0-only"
+}
