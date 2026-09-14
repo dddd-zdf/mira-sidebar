@@ -48,7 +48,7 @@ function buildTemplate(state) {
 
   items.push({ label: 'Dock Left', action: 'dock:left' });
   items.push({ label: 'Dock Right', action: 'dock:right' });
-  if (state.reserveSpace != null) items.push({ label: 'Pin Beside Other Windows', type: 'checkbox', checked: !!state.reserveSpace, action: 'toggle-reserve-space' });
+  if (state.autoFitOnMaximize != null) items.push({ label: 'Fit Beside Top-Edge Maximize', type: 'checkbox', checked: !!state.autoFitOnMaximize, action: 'toggle-auto-fit' });
   items.push({ label: 'Hide on Focus Loss', type: 'checkbox', checked: !!state.hideOnBlur, action: 'toggle-hide-on-blur' });
   items.push({ label: 'Start Hidden in Tray', type: 'checkbox', checked: !!state.startMinimized, action: 'toggle-start-minimized' });
   items.push({

@@ -55,7 +55,24 @@ let blurHandler = null;
 let hotkeyRegistered = false;
 let hiddenByBlurAt = 0;
 let windowsAppbar = null;
+let maximizeWatcher = null;
 let pinnedBesideWindows = false;
+
+function watchTopEdgeMaximize() {
+  if (process.platform !== 'win32' || maximizeWatcher) return;
+  try {
+    maximizeWatcher = require('./src/app/windows-maximize-watcher').createMaximizeWatcher({
+      win,
+      isEnabled: () => config.autoFitOnMaximize && !quitting,
+      onReservation: active => {
+        pinnedBesideWindows = active;
+        applyReservedDocking();
+        if (!quitting) refreshUi();
+      },
+      onError: dockingFailed,
+    });
+  } catch (error) { dockingFailed(error); }
+}
 
 function unpinSidebar() {
   pinnedBesideWindows = false;
@@ -80,7 +97,7 @@ function applyReservedDocking() {
 function dockingFailed(error) {
   console.error('Windows docking:', error);
   pinnedBesideWindows = false;
-  loadStatus = 'Pinning failed. Try Pin Beside Other Windows again from the menu.';
+  loadStatus = 'Automatic window fitting failed. Toggle it off and on in the menu to retry.';
   refreshUi();
 }
 
@@ -158,7 +175,7 @@ function trayState() {
       active: p.id === config.activeProvider,
     })),
     alwaysOnTop: config.alwaysOnTop,
-    reserveSpace: process.platform === 'win32' ? pinnedBesideWindows : null,
+    autoFitOnMaximize: process.platform === 'win32' ? config.autoFitOnMaximize : null,
     startAtLogin: supportsLoginItem() ? app.getLoginItemSettings(loginItemOptions()).openAtLogin : null,
     hotkey: { accelerator: activeHotkey ?? config.hotkey, registered: hotkeyRegistered },
   };
@@ -340,6 +357,7 @@ ipcMain.handle('settings:save', (event, raw) => {
 
 function reloadConfig() {
   loadConfigFromDisk();
+  if (!config.autoFitOnMaximize) maximizeWatcher?.reset();
   applyReservedDocking();
   win.setAlwaysOnTop(config.alwaysOnTop, 'screen-saver');
   applyHideOnBlur();
@@ -400,14 +418,13 @@ function dispatch(action) {
       return dock('right');
     case 'toggle-always-on-top':
       return toggleAlwaysOnTop();
-    case 'toggle-reserve-space':
+    case 'toggle-auto-fit':
       if (process.platform !== 'win32') return;
-      pinnedBesideWindows = !pinnedBesideWindows;
-      if (pinnedBesideWindows) {
-        if (win.isMinimized()) win.restore();
-        win.show();
-      }
-      applyReservedDocking(); refreshUi(); return;
+      config.autoFitOnMaximize = !config.autoFitOnMaximize;
+      persist({ autoFitOnMaximize: config.autoFitOnMaximize });
+      if (!config.autoFitOnMaximize) maximizeWatcher?.reset();
+      else watchTopEdgeMaximize();
+      refreshUi(); return;
     case 'toggle-start-at-login': {
       if (!supportsLoginItem()) return undefined;
       const current = app.getLoginItemSettings(loginItemOptions()).openAtLogin;
@@ -499,7 +516,7 @@ function applyHideOnBlur() {
       // the guard window, or the next toggle within 300ms would be dropped.
       if (!win.isVisible()) return;
       setTimeout(() => {
-        if (!win || win.isDestroyed() || win.isFocused() || pinnedBesideWindows || transientDepth || settingsWindow || viewManager.hasPopups()) return;
+        if (!win || win.isDestroyed() || win.isFocused() || pinnedBesideWindows || maximizeWatcher?.isDragging() || transientDepth || settingsWindow || viewManager.hasPopups()) return;
         hiddenByBlurAt = Date.now();
         win.hide();
       }, 180);
@@ -596,6 +613,7 @@ function createWindow() {
   applyHideOnBlur();
 
   applyReservedDocking();
+  watchTopEdgeMaximize();
   viewManager.show(activeProvider());
   if ((!config.startMinimized && !process.argv.includes('--hidden')) || process.argv.includes('--show')) win.show();
 }
@@ -646,6 +664,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     saveBoundsNow();
     quitting = true;
+    maximizeWatcher?.dispose();
     windowsAppbar?.dispose();
     for (const id of viewManager?.cachedIds() ?? []) viewManager.destroy(id);
     stripView?.webContents.close();
