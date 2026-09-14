@@ -25,6 +25,7 @@ The local build is unsigned. No signing certificate or publisher identity was su
 | Shortcut collision | Startup tries Ctrl+Shift+Space; the actual chord appears in the menu and title strip. If both are occupied, use the tray. |
 | Keep previous shortcut after rejected change | Automatic; settings explains the conflict |
 | Dock left / right | Mira menu > Dock Left / Dock Right |
+| Make other windows fit beside Mira | Enable **Reserve Space When Docked** in the menu, or check it in Mira Settings and save (Windows only) |
 | Resize width | Drag a window edge; minimum width is 420 logical pixels |
 | Move to another monitor | Drag the Mira title strip, then dock on that display |
 | Always on top | Enabled by default; change in settings/menu |
@@ -39,6 +40,16 @@ The local build is unsigned. No signing certificate or publisher identity was su
 ChatGPT remains alive while hidden, so a draft or in-progress response survives ordinary show/hide. Window position and size are saved with a short debounce and at exit. Monitor removal brings the window back onto an available display. Windows scaling may round bounds by one or two logical pixels.
 
 ## Development on Windows
+
+### Windows space reservation
+
+Space reservation is optional and off by default. Enable **Reserve Space When Docked**, then choose **Dock Left** or **Dock Right**. Windows reserves Mira's width so ordinary maximized windows fit in the remaining desktop area. Ctrl+Space releases the reservation when hiding Mira and restores it when showing Mira. Quitting or disabling the option also releases it. The dock side and width persist across restarts.
+
+Drag the inner edge to change width; the reservation updates when you finish dragging. With this mode enabled, dragging the title strip to another monitor re-docks Mira on that monitor at the selected side when you release it. Fullscreen apps (F11, video, games) behave separately; Mira yields its topmost position while Windows reports a fullscreen app. If you want Mira to remain beside another app, leave **Hide on Focus Loss** off.
+
+This feature uses the Windows Shell AppBar API through Koffi in the main process. It does not change PowerToys mappings or expose native access to ChatGPT. This build has not been live-tested for docking; manual validation is pending.
+
+### Build from source
 
 Requires Node.js 22 or newer, npm, and internet access. No Rust, Visual Studio build tools, API key, or developer account is required for this Electron build.
 

@@ -9,6 +9,8 @@ const DEFAULTS = Object.freeze({
   hotkey: 'Control+Space',
   alwaysOnTop: true,
   hideOnBlur: false,
+  reserveSpace: false,
+  dockSide: 'right',
   dockWidthFraction: 0.25,
   startMinimized: true,
   windowBounds: null,
@@ -30,6 +32,8 @@ function defaults() {
     hotkey: DEFAULTS.hotkey,
     alwaysOnTop: DEFAULTS.alwaysOnTop,
     hideOnBlur: DEFAULTS.hideOnBlur,
+    reserveSpace: DEFAULTS.reserveSpace,
+    dockSide: DEFAULTS.dockSide,
     startMinimized: DEFAULTS.startMinimized,
     dockWidthFraction: DEFAULTS.dockWidthFraction,
     windowBounds: DEFAULTS.windowBounds,
@@ -114,7 +118,7 @@ function normalize(raw) {
     }
   }
 
-  for (const field of ['alwaysOnTop', 'hideOnBlur', 'startMinimized']) {
+  for (const field of ['alwaysOnTop', 'hideOnBlur', 'startMinimized', 'reserveSpace']) {
     if (raw[field] !== undefined) {
       if (typeof raw[field] === 'boolean') {
         config[field] = raw[field];
@@ -122,6 +126,11 @@ function normalize(raw) {
         issues.push({ field, reason: 'must be a boolean' });
       }
     }
+  }
+
+  if (raw.dockSide !== undefined) {
+    if (raw.dockSide === 'left' || raw.dockSide === 'right') config.dockSide = raw.dockSide;
+    else issues.push({ field: 'dockSide', reason: 'must be left or right' });
   }
 
   if (raw.dockWidthFraction !== undefined) {

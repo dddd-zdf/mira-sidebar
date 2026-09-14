@@ -54,6 +54,29 @@ let boundsSaveTimer = null;
 let blurHandler = null;
 let hotkeyRegistered = false;
 let hiddenByBlurAt = 0;
+let windowsAppbar = null;
+
+function applyReservedDocking() {
+  if (process.platform !== 'win32' || !win) return;
+  try {
+    if (config.reserveSpace && !windowsAppbar) {
+      windowsAppbar = require('./src/app/windows-appbar').createWindowsAppbar({
+        win, screen,
+        isAlwaysOnTop: () => config.alwaysOnTop,
+        onError: dockingFailed,
+      });
+    }
+    windowsAppbar?.configure(config.reserveSpace, config.dockSide);
+  } catch (error) { dockingFailed(error); }
+}
+
+function dockingFailed(error) {
+  console.error('Windows docking:', error);
+  config.reserveSpace = false;
+  persist({ reserveSpace: false });
+  loadStatus = 'Space reservation failed. Mira Settings can enable it again.';
+  refreshUi();
+}
 
 // ---------------------------------------------------------------------------
 // Config
@@ -129,6 +152,7 @@ function trayState() {
       active: p.id === config.activeProvider,
     })),
     alwaysOnTop: config.alwaysOnTop,
+    reserveSpace: process.platform === 'win32' ? config.reserveSpace : null,
     startAtLogin: supportsLoginItem() ? app.getLoginItemSettings(loginItemOptions()).openAtLogin : null,
     hotkey: { accelerator: activeHotkey ?? config.hotkey, registered: hotkeyRegistered },
   };
@@ -224,6 +248,13 @@ function cycleProvider(direction) {
 
 function dock(side) {
   if (!win) return;
+  config.dockSide = side;
+  persist({ dockSide: side });
+  if (config.reserveSpace && process.platform === 'win32') {
+    applyReservedDocking();
+    saveBoundsNow();
+    return;
+  }
   const { workArea } = screen.getDisplayMatching(win.getBounds());
   const widthFraction = win.getBounds().width / workArea.width;
   win.setBounds(layout.dockBounds(workArea, side, widthFraction));
@@ -251,7 +282,7 @@ function applyZoom(kind) {
 function openSettings() {
   if (settingsWindow) { settingsWindow.show(); settingsWindow.focus(); return; }
   settingsWindow = new BrowserWindow({
-    width: 480, height: 650, resizable: false, autoHideMenuBar: true,
+    width: 480, height: 710, resizable: false, autoHideMenuBar: true,
     title: 'Mira Sidebar settings', alwaysOnTop: true,
     icon: path.join(__dirname, 'assets', 'mira.png'),
     webPreferences: { preload: path.join(__dirname, 'chrome', 'settings-preload.js'), sandbox: true, contextIsolation: true, nodeIntegration: false },
@@ -268,12 +299,12 @@ function trustedSettings(event) {
 
 ipcMain.handle('settings:read', event => {
   if (!trustedSettings(event)) throw new Error('Untrusted sender');
-  return { ...config, activeHotkey, packaged: app.isPackaged, startAtLogin: app.getLoginItemSettings(loginItemOptions()).openAtLogin };
+  return { ...config, activeHotkey, packaged: app.isPackaged, supportsReservedDocking: process.platform === 'win32', startAtLogin: app.getLoginItemSettings(loginItemOptions()).openAtLogin };
 });
 ipcMain.handle('settings:save', (event, raw) => {
   if (!trustedSettings(event)) throw new Error('Untrusted sender');
   if (!raw || typeof raw.hotkey !== 'string' || raw.hotkey.length > 80 ||
-      !['alwaysOnTop','hideOnBlur','startMinimized','startAtLogin'].every(key => typeof raw[key] === 'boolean')) {
+      !['alwaysOnTop','hideOnBlur','startMinimized','startAtLogin','reserveSpace'].every(key => typeof raw[key] === 'boolean')) {
     return { message: 'Please check the settings and try again.' };
   }
   const { issues } = normalize({ hotkey: raw.hotkey });
@@ -281,7 +312,7 @@ ipcMain.handle('settings:save', (event, raw) => {
   const previous = activeHotkey;
   const result = bindHotkey(globalShortcut, raw.hotkey, activeHotkey, () => dispatch('toggle-window'));
   if (!result.ok) return { message: 'That shortcut is unavailable. Your previous shortcut is still active.' };
-  const patch = Object.fromEntries(['hotkey','alwaysOnTop','hideOnBlur','startMinimized'].map(key => [key, raw[key]]));
+  const patch = Object.fromEntries(['hotkey','alwaysOnTop','hideOnBlur','startMinimized','reserveSpace'].map(key => [key, raw[key]]));
   try {
     saveJsonAtomic(configPath, { ...config, ...patch });
   } catch {
@@ -295,13 +326,15 @@ ipcMain.handle('settings:save', (event, raw) => {
   activeHotkey = result.active; hotkeyRegistered = true;
   Object.assign(config, patch);
   win.setAlwaysOnTop(config.alwaysOnTop, 'screen-saver'); applyHideOnBlur();
+  applyReservedDocking();
   if (app.isPackaged) app.setLoginItemSettings({ ...loginItemOptions(), openAtLogin: raw.startAtLogin });
   refreshUi();
-  return { message: `Saved. Press ${activeHotkey} to show or hide Mira.` };
+  return { message: raw.reserveSpace && !config.reserveSpace ? 'Space reservation failed; the other settings were saved.' : `Saved. Press ${activeHotkey} to show or hide Mira.`, reserveSpace: config.reserveSpace };
 });
 
 function reloadConfig() {
   loadConfigFromDisk();
+  applyReservedDocking();
   win.setAlwaysOnTop(config.alwaysOnTop, 'screen-saver');
   applyHideOnBlur();
   registerHotkey();
@@ -361,6 +394,10 @@ function dispatch(action) {
       return dock('right');
     case 'toggle-always-on-top':
       return toggleAlwaysOnTop();
+    case 'toggle-reserve-space':
+      config.reserveSpace = !config.reserveSpace;
+      persist({ reserveSpace: config.reserveSpace });
+      applyReservedDocking(); refreshUi(); return;
     case 'toggle-start-at-login': {
       if (!supportsLoginItem()) return undefined;
       const current = app.getLoginItemSettings(loginItemOptions()).openAtLogin;
@@ -539,12 +576,14 @@ function createWindow() {
       event.preventDefault();
       win.hide();
     }
+    else windowsAppbar?.dispose();
   });
   win.on('closed', () => {
     win = null;
   });
   applyHideOnBlur();
 
+  applyReservedDocking();
   viewManager.show(activeProvider());
   if ((!config.startMinimized && !process.argv.includes('--hidden')) || process.argv.includes('--show')) win.show();
 }
@@ -585,6 +624,7 @@ if (!app.requestSingleInstanceLock()) {
       dispatch,
     );
     screen.on('display-removed', () => {
+      if (config.reserveSpace && process.platform === 'win32') return;
       const bounds = layout.clampToDisplay(win.getBounds(), screen.getAllDisplays().map(d => d.workArea));
       if (bounds) win.setBounds(bounds);
     });
@@ -594,6 +634,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     saveBoundsNow();
     quitting = true;
+    windowsAppbar?.dispose();
     for (const id of viewManager?.cachedIds() ?? []) viewManager.destroy(id);
     stripView?.webContents.close();
   });

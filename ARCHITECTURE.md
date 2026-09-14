@@ -19,6 +19,12 @@ This is an engineering tradeoff for the working v1, not evidence that Electron c
 - Downloads use Chromium's save dialog and are never automatically opened. Standard file inputs remain browser-managed. TLS validation and web security remain enabled.
 - The development smoke harness uses a reserved .invalid-domain synthetic cookie in a separate test profile. The harness is excluded from packaged files.
 
+## Windows docking
+
+The optional `reserveSpace` setting uses `src/app/windows-appbar.js`, loaded only in the Windows main process when enabled. Koffi 3.2.1 calls the system Shell/User32 libraries. `ABM_NEW`, `ABM_QUERYPOS`, and `ABM_SETPOS` negotiate reserved space; `ABM_REMOVE` releases it on hide, minimize, disable, and shutdown. No global work-area override or PowerToys configuration changes are used.
+
+Native monitor/window rectangles and positioning use physical pixels throughout to avoid mixing Windows pixels with Electron DIP coordinates. Message hooks defer Shell calls; position caching prevents feedback loops from our own work-area notifications. Interactive moves/resizes settle before repositioning. Explorer's `TaskbarCreated` message re-registers a visible dock; display changes renegotiate the rectangle. Native API failures disable the option and report an error in the sidebar. The prior overlay path remains the default. Live validation is pending at the user's request.
+
 ## Sources inspected
 
 - [Upstream repository](https://github.com/thinkdj/ChatGPT-Desktop-Companion)
